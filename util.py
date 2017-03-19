@@ -54,14 +54,28 @@ def initial_assignment_tngm(corpus, K, W, D, mapping):
                 q_dk[i, topic] += 1
                 n_kw[topic, word] += 1
                 if k == 0:
+                    # if j == 0:
+                    #     if i == 0:
+                    #         continue
+                    #     else:
+                    #         prev_word = mapping[corpus[i-1][-1][-1]]
+                    #         prev_topic = assignment[i-1][-1][-1]
+                    # else:
+                    #     prev_word = mapping[corpus[i][j-1][-1]]
+                    #     prev_topic = assignment[i][j-1][-1]
+                    # m_kwv[topic, word, prev_word] += 1
+                    # p_kwx[prev_topic, word, 0] += 1
                     continue
-                prev_word = mapping[corpus[i][j][k -1]]
-                x_i = random.randint(0, 1)
-                x[i][j].append(x_i)
-                m_kwv[topic, word, prev_word] += 1
-                p_kwx[topic, word, x_i] += 1
+                else:
+                    prev_word = mapping[corpus[i][j][k -1]]
+                    prev_topic = assignment[i][j][k-1]
+                    x_i = random.randint(0, 1)
+                    x[i][j].append(x_i)
+                    m_kwv[topic, prev_word, word] += 1
+                    p_kwx[prev_topic, prev_word, x_i] += 1
 
     return q_dk, n_kw, m_kwv, p_kwx, assignment, x
+
 
 def conditional_prob_z_x0(alpha,beta,q_dk,n_kw, n_k, d, n):
     """
@@ -80,7 +94,8 @@ def conditional_prob_z_x0(alpha,beta,q_dk,n_kw, n_k, d, n):
     W = n_kw.shape[1]
     prob = np.zeros((K, 1))
     for k in range(K):
-        prob[k] = (alpha + q_dk[d, k] -1) * (beta + n_kw[k, n] - 1) / (n_k[k] + W * beta - 1)
+        prob[k] = (alpha + q_dk[d, k]) * (beta + n_kw[k, n]) / (n_k[k] + W * beta)
+    prob = prob / np.sum(prob, axis=0)
     return prob
 
 def conditional_prob_z_x1(alpha,sigma,q_dk,m_kwv, m_kw, d, n, v):
@@ -100,7 +115,8 @@ def conditional_prob_z_x1(alpha,sigma,q_dk,m_kwv, m_kw, d, n, v):
     W = m_kwv.shape[1]
     prob = np.zeros((K, 1))
     for k in range(K):
-        prob[k] = (alpha + q_dk[d, k] -1) * (sigma + m_kwv[k, v, n] -1) / (m_kw[k, v] + W * sigma - 1)
+        prob[k] = (alpha + q_dk[d, k] ) * (sigma + m_kwv[k, v, n] ) / (m_kw[k, v] + W * sigma )
+    prob = prob / np.sum(prob, axis=0)
     return prob
 
 def conditional_prob_x_x0(gamma,beta,p_kwx, n_kw, n_k, n, v, z_i, z_i1):
@@ -116,10 +132,13 @@ def conditional_prob_x_x0(gamma,beta,p_kwx, n_kw, n_k, n, v, z_i, z_i1):
     m_kw: number of words assigned to topic k with previous word w (np array (K, W))
 
     """
+
     W = n_kw.shape[1]
     prob = np.zeros((2, 1))
     for x in range(2):
-        prob[x] = (gamma + p_kwx[z_i1, v, x] -1) * (beta + n_kw[z_i, n] - 1) / (n_k[z_i] + W * beta - 1)
+        prob[x] = (gamma + p_kwx[z_i1, v, x] ) * (beta + n_kw[z_i, n] ) / (n_k[z_i] + W * beta )
+    prob = prob / np.sum(prob, axis=0)
+
     return prob
 
 def conditional_prob_x_x1(gamma, sigma, p_kwx, m_kwv, m_kw, n, v, z_i, z_i1):
@@ -138,7 +157,9 @@ def conditional_prob_x_x1(gamma, sigma, p_kwx, m_kwv, m_kw, n, v, z_i, z_i1):
     W = m_kw.shape[1]
     prob = np.zeros((2, 1))
     for x in range(2):
-        prob[x] = (gamma + p_kwx[z_i1, v, x] -1) * (sigma + m_kwv[z_i, v, n] -1) / (m_kw[z_i, v] + W * sigma - 1)
+        prob[x] = (gamma + p_kwx[z_i1, v, x]) * (sigma + m_kwv[z_i, v, n]) / (m_kw[z_i, v] + W * sigma )
+    prob = prob / np.sum(prob, axis=0)
+
     return prob
 
 #
@@ -154,6 +175,7 @@ def read_doc_lda(dir):
         for line in f:
             corpus.append(line)
     for i in range(len(corpus)):
+        corpus[i] = corpus[i].replace(',',' ')
         corpus[i] = corpus[i].split()
     return corpus
 
@@ -209,6 +231,7 @@ def conditional_prob(n_dk, n_d, m_kw, m_k, d, n, alpha, beta):
     prob = np.zeros((K, 1))
     for k in range(K):
         prob[k] = (n_dk[d, k] + alpha) / (n_d[d] + K * alpha) * (m_kw[k, n] + beta) / (m_k[k] + W * beta)
+
     prob = prob / np.sum(prob, axis=0)
     return prob
 
@@ -221,3 +244,13 @@ def sample_topic(prob):
         cumulative_prob += prob[i]
         if sample < cumulative_prob:
             return i
+    return K-1
+
+
+def list_to_string(l):
+    res = ''
+    if len(l) == 0:
+        return res
+    for i in range(len(l)):
+        res += str(l[i]) + '_to_'
+    return res[:-4]

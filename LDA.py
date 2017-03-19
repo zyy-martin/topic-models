@@ -33,6 +33,7 @@ class LatentDirichletAllocation:
         self.n_d = np.sum(self.n_dk, axis=1)
         self.m_k = np.sum(self.m_kw, axis=1)
 
+
     def gibbs_sampler(self, n_burn_in=10):
         for i in range(n_burn_in):
             for j in range(self.D):
@@ -54,19 +55,27 @@ class LatentDirichletAllocation:
                     self.m_kw[new_topic, current_word_mapping] += 1
             print('iteration ' + str(i))
 
+
     def get_model(self):
         model = {}
         for word in self.vocabulary:
             model[word] =[]
             model[word].append(np.matrix(self.m_kw[:, self.mapping[word]]).T.tolist())
+        f = open('LDA_model_mini.txt', 'wt')
+        for word in sorted(model.keys()):
+            f.write(word)
+            for i in range(len(model[word][0])):
+                f.write(' '+str(model[word][0][i][0]))
+            f.write('\n')
+        f.close()
         return model
 
     def get_result(self):
-        return self.m_k, self.m_kw, self.n_d, self.n_dk, self.mapping
+        return self.assignment
 
-# lda = LatentDirichletAllocation('test_doc_lda.txt', 3, 0.01, 10)
-# lda.gibbs_sampler(200)
-# model = lda.get_model()
-# for word in model:
-#     print(word, model[word])
+
+# lda = LatentDirichletAllocation('corpus_1.txt', 4, 10, 0.01)
+# lda.gibbs_sampler(150)
+# lda.get_model()
+
 
